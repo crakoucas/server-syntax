@@ -1,0 +1,55 @@
+# Javascript Node CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-javascript/ for more details
+#
+version: 2
+jobs:
+  build:
+    branches:
+      only:
+        - master
+    docker:
+      # specify the version you desire here
+      - image: circleci/node:8.11-browsers
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/mongo:3.4.4
+
+    working_directory: ~/src
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "package.json" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run: yarn install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+
+      # # run tests!
+      - run: 
+          name: background server for tests
+          command: yarn build && yarn start
+          background: true
+      - run:  yarn test
+
+      - setup_remote_docker   # (2)
+      #    on:
+      #    tags: true
+      #    branch: master
+      # use a primary image that already has Docker (recommended)
+      # or install it during a build like we do here
+      # build and push Docker image
+      - run: |
+          TAG=0.1.$CIRCLE_BUILD_NUM
+          docker build -t crakoucas/syntax:$TAG .      # (3)
+          docker login -u $DOCKER_USER -p $DOCKER_PASS         # (4)
+          docker push crakoucas/syntax:$TAG
